@@ -84,36 +84,7 @@ export async function POST(request: Request) {
 
     const defaultConfiguration: TemplateConfiguration = {
       page: 1,
-      fields: [
-        {
-          key: 'fullName',
-          type: 'text',
-          fontFamily: 'Georgia',
-          fontSize: 32,
-          minFontSize: 18,
-          maxFontSize: 32,
-          alignment: 'center',
-          verticalAlignment: 'middle',
-          x: (pageW - nameW) / 2,
-          y: pageH * 0.5,
-          width: nameW,
-          height: nameH,
-        },
-        {
-          key: 'certificateId',
-          type: 'text',
-          fontFamily: 'Bahnschrift',
-          fontSize: 14,
-          minFontSize: 14,
-          maxFontSize: 14,
-          alignment: 'center',
-          verticalAlignment: 'middle',
-          x: (pageW - idW) / 2,
-          y: pageH * 0.25,
-          width: idW,
-          height: idH,
-        },
-      ],
+      fields: [],
     };
 
     // Save to DB

@@ -50,9 +50,10 @@ async function processBatch(
       const certRecord = await prisma.certificate.create({
         data: {
           generationId,
-          fullName: participant.fullName,
-          certificateId: participant.certificateId,
+          fullName: participant.fullName || 'Noma\'lum',
+          certificateId: participant.certificateId || `ID_${participant.sourceRow}`,
           region: participant.region,
+          dynamicFields: participant.dynamicFields || {},
           sourceRow: participant.sourceRow,
           fileName: '',
           status: 'PENDING',
@@ -63,8 +64,11 @@ async function processBatch(
       const result = await generateCertificate({
         templatePdfBuffer,
         configuration: activeConfig,
-        fullName: participant.fullName,
-        certificateId: participant.certificateId,
+        fieldValues: {
+          fullName: participant.fullName,
+          certificateId: participant.certificateId,
+          ...participant.dynamicFields,
+        },
       });
 
       if (result.success && result.pdfBuffer) {

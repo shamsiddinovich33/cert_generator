@@ -43,6 +43,7 @@ model Certificate {
   fullName      String
   certificateId String
   region        String?    // Added region (hudud) field
+  dynamicFields Json?      // Added to store arbitrary custom fields
   sourceRow     Int        @default(0) // Added sourceRow for error report mapping
   fileName      String
   fileUrl       String?

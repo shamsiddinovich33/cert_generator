@@ -124,37 +124,35 @@ export default function TemplateEditorPage() {
     if (!pdfjsLoaded || !template || !canvasRef.current) return;
 
     let isCancelled = false;
+    let renderTask: any = null;
 
     const renderPdf = async () => {
       try {
         const pdfjsLib = (window as any).pdfjsLib;
-        // Fetch original file as ArrayBuffer
         const response = await fetch(template.originalFileUrl);
         const arrayBuffer = await response.arrayBuffer();
+        if (isCancelled) return;
 
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
         const pdf = await loadingTask.promise;
-
         if (isCancelled) return;
 
         const page = await pdf.getPage(1);
+        if (isCancelled) return;
+
         const viewport = page.getViewport({ scale: 1.0 });
 
-        // Set dimensions in points
         setPdfDimensions({ width: viewport.width, height: viewport.height });
 
-        // Render onto canvas
         const canvas = canvasRef.current!;
         const context = canvas.getContext('2d')!;
 
-        // Adjust for device pixel ratio
         const dpr = window.devicePixelRatio || 1;
         canvas.width = viewport.width * dpr;
         canvas.height = viewport.height * dpr;
         canvas.style.width = `${viewport.width}px`;
         canvas.style.height = `${viewport.height}px`;
 
-        // Also scale drawing context
         context.scale(dpr, dpr);
 
         const renderContext = {
@@ -162,13 +160,19 @@ export default function TemplateEditorPage() {
           viewport: viewport,
         };
 
-        await page.render(renderContext).promise;
+        renderTask = page.render(renderContext);
+        await renderTask.promise;
 
-        // Sync container dimensions (initially equal to PDF points)
+        if (isCancelled) return;
+
         setContainerDimensions({ width: viewport.width, height: viewport.height });
-      } catch (err) {
-        console.error('Error rendering PDF template:', err);
-        setError('PDF shablonini render qilishda xatolik.');
+      } catch (err: any) {
+        if (err?.name === 'RenderingCancelledException') {
+          console.log('PDF rendering cancelled.');
+        } else {
+          console.error('Error rendering PDF template:', err);
+          setError('PDF shablonini render qilishda xatolik yuz berdi. Iltimos sahifani yangilang.');
+        }
       }
     };
 
@@ -176,6 +180,9 @@ export default function TemplateEditorPage() {
 
     return () => {
       isCancelled = true;
+      if (renderTask) {
+        renderTask.cancel();
+      }
     };
   }, [pdfjsLoaded, template]);
 
@@ -209,7 +216,7 @@ export default function TemplateEditorPage() {
   // 4. Handle Mouse Actions for Dragging & Resizing (in Browser Pixels, then converted to PDF Points)
   const handleMouseDown = (
     e: React.MouseEvent,
-    fieldKey: 'fullName' | 'certificateId',
+    fieldKey: string,
     action: 'drag' | 'resize'
   ) => {
     e.preventDefault();
@@ -322,6 +329,35 @@ export default function TemplateEditorPage() {
     setFields((prev) =>
       prev.map((f) => (f.key === selectedFieldKey ? { ...f, [key]: value } as any : f))
     );
+  };
+
+  const handleAddField = () => {
+    const newKey = `field_${Date.now()}`;
+    const newField: TemplateField = {
+      key: newKey,
+      label: 'Yangi maydon',
+      type: 'text',
+      fontFamily: 'Arial',
+      fontSize: 24,
+      minFontSize: 14,
+      maxFontSize: 32,
+      alignment: 'center',
+      verticalAlignment: 'middle',
+      x: 200,
+      y: 200,
+      width: 250,
+      height: 40,
+    };
+    setFields([...fields, newField]);
+    setSelectedFieldKey(newKey);
+  };
+
+  const handleDeleteField = (key: string) => {
+    const newFields = fields.filter(f => f.key !== key);
+    setFields(newFields);
+    if (selectedFieldKey === key) {
+      setSelectedFieldKey(newFields.length > 0 ? newFields[0].key : null);
+    }
   };
 
   // 5. Save Configuration to Database
@@ -497,9 +533,9 @@ export default function TemplateEditorPage() {
                       }`}
                       onMouseDown={(e) => handleMouseDown(e, field.key, 'drag')}
                     >
-                      <span className="flex items-center">
-                        <Move className="h-3 w-3 mr-1" />
-                        {field.key === 'fullName' ? 'Ism (Full Name)' : 'Sertifikat ID'}
+                      <span className="flex items-center truncate max-w-[120px]">
+                        <Move className="h-3 w-3 mr-1 shrink-0" />
+                        {field.label || (field.key === 'fullName' ? 'Ism (Full Name)' : field.key === 'certificateId' ? 'Sertifikat ID' : field.key)}
                       </span>
                       <span className="opacity-90">{field.fontFamily}</span>
                     </div>
@@ -524,7 +560,7 @@ export default function TemplateEditorPage() {
                           : ''
                       }`}
                     >
-                      {field.key === 'fullName' ? 'Abdullayev Muhammadali' : 'K00001'}
+                      {field.key === 'fullName' ? 'Abdullayev Muhammadali' : field.key === 'certificateId' ? 'K00001' : (field.label || 'Matn...')}
                     </div>
 
                     {/* Resize handle (bottom right corner) */}
@@ -543,139 +579,171 @@ export default function TemplateEditorPage() {
           </div>
 
           {/* RIGHT: Field Settings Panel */}
-          <div className="w-80 border-l border-slate-200 bg-white p-6 overflow-y-auto shrink-0 flex flex-col justify-between">
-            {selectedField ? (
-              <div className="space-y-6">
-                <div>
+          <div className="w-80 border-l border-slate-200 bg-slate-50 p-6 overflow-y-auto shrink-0 flex flex-col justify-between">
+            <div className="space-y-8">
+              {/* Field List Section */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-bold text-indigo-650 uppercase tracking-widest">
-                    Maydon sozlamalari
+                    Maydonlar
                   </span>
-                  <h3 className="text-lg font-bold text-slate-800 mt-1">
-                    {selectedField.key === 'fullName' ? 'F.I.Sh (Full Name)' : 'Sertifikat ID'}
-                  </h3>
+                  <Button size="sm" variant="outline" className="h-7 text-xs px-2 py-0 border-indigo-200 text-indigo-700 hover:bg-indigo-50" onClick={handleAddField}>
+                    + Qo'shish
+                  </Button>
                 </div>
+                <div className="space-y-2">
+                  {fields.map(f => (
+                    <div 
+                      key={f.key}
+                      onClick={() => setSelectedFieldKey(f.key)}
+                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer border ${selectedFieldKey === f.key ? 'bg-white border-indigo-500 shadow-sm' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
+                    >
+                      <span className="text-sm font-semibold text-slate-700 truncate max-w-[150px]">
+                        {f.label || f.key}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteField(f.key); }}
+                        className="text-red-400 hover:text-red-600 p-1"
+                        title="O'chirish"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-                <div className="space-y-4">
-                  {/* Font Family (Only Georgia for Name, Bahnschrift for ID as per rule) */}
-                  <Select
-                    label="Font (Shrift)"
-                    value={selectedField.fontFamily}
-                    onChange={(e) => updateFieldProperty('fontFamily', e.target.value)}
-                    options={
-                      selectedField.key === 'fullName'
-                        ? [{ value: 'Georgia', label: 'Georgia' }]
-                        : [{ value: 'Bahnschrift', label: 'Bahnschrift' }]
-                    }
-                  />
+              {selectedField ? (
+                <div className="space-y-6 pt-6 border-t border-slate-200">
+                  <div>
+                    <span className="text-xs font-bold text-indigo-650 uppercase tracking-widest">
+                      Maydon sozlamalari
+                    </span>
+                    <div className="mt-2">
+                      <Input 
+                        label="Maydon nomi"
+                        type="text"
+                        value={selectedField.label || (selectedField.key === 'fullName' ? 'F.I.Sh (Full Name)' : selectedField.key === 'certificateId' ? 'Sertifikat ID' : '')}
+                        onChange={(e) => updateFieldProperty('label', e.target.value)}
+                      />
+                    </div>
+                  </div>
 
-                  {/* Font Style Choice */}
-                  <Select
-                    label="Style (Stil)"
-                    value={selectedField.fontStyle || 'normal'}
-                    onChange={(e) => updateFieldProperty('fontStyle', e.target.value)}
-                    options={[
-                      { value: 'normal', label: 'Normal (Oddiy)' },
-                      { value: 'italic', label: 'Italic / Oblique (Kursiv)' },
-                      { value: 'bold', label: 'Bold (Qalin)' },
-                      { value: 'bold-italic', label: 'Bold Italic (Qalin Kursiv)' },
-                    ]}
-                  />
+                  <div className="space-y-4">
+                    {/* Font Family */}
+                    <Select
+                      label="Font (Shrift)"
+                      value={selectedField.fontFamily}
+                      onChange={(e) => updateFieldProperty('fontFamily', e.target.value)}
+                      options={[
+                        { value: 'Georgia', label: 'Georgia' },
+                        { value: 'Arial', label: 'Arial' },
+                        { value: 'Times New Roman', label: 'Times New Roman' },
+                        { value: 'Tahoma', label: 'Tahoma' },
+                        { value: 'Courier New', label: 'Courier New' },
+                        { value: 'Bahnschrift', label: 'Bahnschrift' },
+                      ]}
+                    />
 
-                  {/* Font Size controls */}
-                  {selectedField.key === 'fullName' ? (
+                    {/* Font Style Choice */}
+                    <Select
+                      label="Style (Stil)"
+                      value={selectedField.fontStyle || 'normal'}
+                      onChange={(e) => updateFieldProperty('fontStyle', e.target.value)}
+                      options={[
+                        { value: 'normal', label: 'Normal (Oddiy)' },
+                        { value: 'italic', label: 'Italic / Oblique (Kursiv)' },
+                        { value: 'bold', label: 'Bold (Qalin)' },
+                        { value: 'bold-italic', label: 'Bold Italic (Qalin Kursiv)' },
+                      ]}
+                    />
+
+                    {/* Font Size controls */}
                     <div className="grid grid-cols-2 gap-3">
                       <Input
                         label="Min Size (pt)"
                         type="number"
                         min="10"
                         max="32"
-                        value={selectedField.minFontSize}
-                        onChange={(e) => updateFieldProperty('minFontSize', parseInt(e.target.value) || 18)}
+                        value={selectedField.minFontSize || 14}
+                        onChange={(e) => updateFieldProperty('minFontSize', parseInt(e.target.value) || 14)}
                       />
                       <Input
                         label="Max Size (pt)"
                         type="number"
                         min="18"
-                        max="60"
-                        value={selectedField.maxFontSize}
+                        max="100"
+                        value={selectedField.maxFontSize || 32}
                         onChange={(e) => updateFieldProperty('maxFontSize', parseInt(e.target.value) || 32)}
                       />
                     </div>
-                  ) : (
-                    <Input
-                      label="Font Size (pt)"
-                      type="number"
-                      value={selectedField.fontSize}
-                      disabled
-                      className="bg-slate-50 text-slate-450 border-slate-100"
+
+                    {/* Horizontal Alignment */}
+                    <Select
+                      label="Tekislash (Alignment)"
+                      value={selectedField.alignment}
+                      onChange={(e) => updateFieldProperty('alignment', e.target.value)}
+                      options={[
+                        { value: 'center', label: 'Markaz (Center)' },
+                        { value: 'left', label: 'Chap (Left)' },
+                        { value: 'right', label: 'O‘ng (Right)' },
+                      ]}
                     />
-                  )}
 
-                  {/* Horizontal Alignment */}
-                  <Select
-                    label="Tekislash (Alignment)"
-                    value={selectedField.alignment}
-                    onChange={(e) => updateFieldProperty('alignment', e.target.value)}
-                    options={[
-                      { value: 'center', label: 'Markaz (Center)' },
-                      { value: 'left', label: 'Chap (Left)' },
-                      { value: 'right', label: 'O‘ng (Right)' },
-                    ]}
-                  />
+                    {/* Vertical Alignment */}
+                    <Select
+                      label="Vertikal Tekislash"
+                      value={selectedField.verticalAlignment}
+                      onChange={(e) => updateFieldProperty('verticalAlignment', e.target.value)}
+                      options={[
+                        { value: 'middle', label: 'O‘rtada (Middle)' },
+                        { value: 'top', label: 'Tepada (Top)' },
+                        { value: 'bottom', label: 'Pastda (Bottom)' },
+                      ]}
+                    />
 
-                  {/* Vertical Alignment */}
-                  <Select
-                    label="Vertikal Tekislash"
-                    value={selectedField.verticalAlignment}
-                    onChange={(e) => updateFieldProperty('verticalAlignment', e.target.value)}
-                    options={[
-                      { value: 'middle', label: 'O‘rtada (Middle)' },
-                      { value: 'top', label: 'Tepada (Top)' },
-                      { value: 'bottom', label: 'Pastda (Bottom)' },
-                    ]}
-                  />
+                    {/* Coordinate readouts/inputs */}
+                    <div className="pt-4 border-t border-slate-200 space-y-3">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Koordinatalar (PDF ballarda - Pt)
+                      </span>
 
-                  {/* Coordinate readouts/inputs */}
-                  <div className="pt-4 border-t border-slate-100 space-y-3">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Koordinatalar (PDF ballarda - Pt)
-                    </span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input
+                          label="X"
+                          type="number"
+                          value={selectedField.x}
+                          onChange={(e) => updateFieldProperty('x', parseInt(e.target.value) || 0)}
+                        />
+                        <Input
+                          label="Y"
+                          type="number"
+                          value={selectedField.y}
+                          onChange={(e) => updateFieldProperty('y', parseInt(e.target.value) || 0)}
+                        />
+                      </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input
-                        label="X (Chapdan masofa)"
-                        type="number"
-                        value={selectedField.x}
-                        onChange={(e) => updateFieldProperty('x', parseInt(e.target.value) || 0)}
-                      />
-                      <Input
-                        label="Y (Pastdan masofa)"
-                        type="number"
-                        value={selectedField.y}
-                        onChange={(e) => updateFieldProperty('y', parseInt(e.target.value) || 0)}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input
-                        label="Kenglik (Width)"
-                        type="number"
-                        value={selectedField.width}
-                        onChange={(e) => updateFieldProperty('width', parseInt(e.target.value) || 0)}
-                      />
-                      <Input
-                        label="Balandlik (Height)"
-                        type="number"
-                        value={selectedField.height}
-                        onChange={(e) => updateFieldProperty('height', parseInt(e.target.value) || 0)}
-                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input
+                          label="Kenglik"
+                          type="number"
+                          value={selectedField.width}
+                          onChange={(e) => updateFieldProperty('width', parseInt(e.target.value) || 0)}
+                        />
+                        <Input
+                          label="Balandlik"
+                          type="number"
+                          value={selectedField.height}
+                          onChange={(e) => updateFieldProperty('height', parseInt(e.target.value) || 0)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <p className="text-slate-500 text-sm">Sozlash uchun maydonni tanlang.</p>
-            )}
+              ) : (
+                <p className="text-slate-500 text-sm">Sozlash uchun maydonni tanlang.</p>
+              )}
+            </div>
 
             <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
               <p className="text-[11px] text-slate-400 leading-relaxed">

@@ -32,6 +32,7 @@ interface Template {
   id: string;
   name: string;
   description: string | null;
+  configuration?: any;
 }
 
 function GeneratePageContent() {
@@ -59,6 +60,7 @@ function GeneratePageContent() {
   const [fullNameCol, setFullNameCol] = useState('');
   const [certificateIdCol, setCertificateIdCol] = useState('');
   const [regionCol, setRegionCol] = useState('');
+  const [dynamicCols, setDynamicCols] = useState<Record<string, string>>({});
 
   // Validation results
   const [validParticipants, setValidParticipants] = useState<ParticipantInput[]>([]);
@@ -178,6 +180,7 @@ function GeneratePageContent() {
       fullNameColumn: fullNameCol,
       certificateIdColumn: certificateIdCol,
       regionColumn: regionCol || undefined,
+      dynamicColumns: dynamicCols,
     });
 
     setValidParticipants(result.valid);
@@ -205,6 +208,7 @@ function GeneratePageContent() {
           templateId: selectedTemplateId,
           fullName: participant.fullName,
           certificateId: participant.certificateId,
+          dynamicFields: participant.dynamicFields || {},
         }),
       });
 
@@ -521,56 +525,60 @@ function GeneratePageContent() {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Full Name Column */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                  Ism (Full Name) Ustuni
-                </label>
-                <div className="relative">
-                  <select
-                    className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 appearance-none"
-                    value={fullNameCol}
-                    onChange={(e) => setFullNameCol(e.target.value)}
-                  >
-                    <option value="">-- Ustunni tanlang --</option>
-                    {excelColumns.map((col) => (
-                      <option key={col} value={col}>
-                        {col}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                    <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                    </svg>
+              {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || []).some((f: any) => f.key === 'fullName') && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                    Ism (Full Name) Ustuni
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 appearance-none"
+                      value={fullNameCol}
+                      onChange={(e) => setFullNameCol(e.target.value)}
+                    >
+                      <option value="">-- Tanlanmagan --</option>
+                      {excelColumns.map((col) => (
+                        <option key={col} value={col}>
+                          {col}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                      <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Certificate ID Column */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                  Sertifikat ID Ustuni
-                </label>
-                <div className="relative">
-                  <select
-                    className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 appearance-none"
-                    value={certificateIdCol}
-                    onChange={(e) => setCertificateIdCol(e.target.value)}
-                  >
-                    <option value="">-- Ustunni tanlang --</option>
-                    {excelColumns.map((col) => (
-                      <option key={col} value={col}>
-                        {col}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                    <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                    </svg>
+              {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || []).some((f: any) => f.key === 'certificateId') && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                    Sertifikat ID Ustuni
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 appearance-none"
+                      value={certificateIdCol}
+                      onChange={(e) => setCertificateIdCol(e.target.value)}
+                    >
+                      <option value="">-- Tanlanmagan --</option>
+                      {excelColumns.map((col) => (
+                        <option key={col} value={col}>
+                          {col}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                      <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Region Column */}
               <div className="space-y-2">
@@ -598,6 +606,42 @@ function GeneratePageContent() {
                 </div>
               </div>
             </div>
+
+            {/* Dynamic Fields from Template */}
+            {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || [])
+              .filter((f: any) => f.key !== 'fullName' && f.key !== 'certificateId')
+              .length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-100">
+                {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || [])
+                  .filter((f: any) => f.key !== 'fullName' && f.key !== 'certificateId')
+                  .map((field: any) => (
+                    <div key={field.key} className="space-y-2">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                        {field.label || field.key}
+                      </label>
+                      <div className="relative">
+                        <select
+                          className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 appearance-none"
+                          value={dynamicCols[field.key] || ''}
+                          onChange={(e) => setDynamicCols(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        >
+                          <option value="">-- Tanlanmagan --</option>
+                          {excelColumns.map((col) => (
+                            <option key={col} value={col}>
+                              {col}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                          <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
 
             {/* Quick Preview table of parsed Excel */}
             {excelRows.length > 0 && (

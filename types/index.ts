@@ -1,7 +1,8 @@
 export interface TemplateField {
-  key: 'fullName' | 'certificateId';
+  key: string;
+  label: string; // User-facing name (e.g. "F.I.Sh", "Kurs Nomi")
   type: 'text';
-  fontFamily: 'Georgia' | 'Bahnschrift';
+  fontFamily: string; // Changed to string to allow any font
   fontSize: number;
   minFontSize: number;
   maxFontSize: number;
@@ -20,10 +21,13 @@ export interface TemplateConfiguration {
 }
 
 export interface ParticipantInput {
+  // Required core fields
   fullName: string;
   certificateId: string;
   region?: string; // Mapped region (hudud)
   sourceRow: number;
+  // Dynamic fields
+  dynamicFields?: Record<string, string>;
 }
 
 export interface RowError {

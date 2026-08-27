@@ -1,14 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-export interface LoadedFonts {
-  georgia: Buffer;
-  georgiaItalic: Buffer;
-  georgiaBold: Buffer;
-  georgiaBoldItalic: Buffer; // Added Bold Italic
-  bahnschrift: Buffer;
-}
-
 export function checkFontsAvailable(): { georgia: boolean; bahnschrift: boolean } {
   const georgiaPath = path.join(process.cwd(), 'public', 'fonts', 'Georgia.ttf');
   const bahnschriftPath = path.join(process.cwd(), 'public', 'fonts', 'Bahnschrift.ttf');
@@ -19,37 +11,34 @@ export function checkFontsAvailable(): { georgia: boolean; bahnschrift: boolean 
   };
 }
 
-export function loadFontFiles(): LoadedFonts {
+export function loadCustomFont(fontFamily: string, fontStyle?: string): Buffer {
   const fontsDir = path.join(process.cwd(), 'public', 'fonts');
-  const georgiaPath = path.join(fontsDir, 'Georgia.ttf');
-  const georgiaItalicPath = path.join(fontsDir, 'Georgia-Italic.ttf');
-  const georgiaBoldPath = path.join(fontsDir, 'Georgia-Bold.ttf');
-  const georgiaBoldItalicPath = path.join(fontsDir, 'Georgia-BoldItalic.ttf');
-  const bahnschriftPath = path.join(fontsDir, 'Bahnschrift.ttf');
-
-  if (!fs.existsSync(georgiaPath)) {
-    throw new Error('Georgia font is not available.');
-  }
-
-  if (!fs.existsSync(bahnschriftPath)) {
-    throw new Error('Bahnschrift font is not available.');
-  }
-
-  const georgia = fs.readFileSync(georgiaPath);
-  const bahnschrift = fs.readFileSync(bahnschriftPath);
   
-  // Load bold and italic variants with fallbacks to regular
-  const georgiaItalic = fs.existsSync(georgiaItalicPath) 
-    ? fs.readFileSync(georgiaItalicPath) 
-    : georgia;
-    
-  const georgiaBold = fs.existsSync(georgiaBoldPath) 
-    ? fs.readFileSync(georgiaBoldPath) 
-    : georgia;
-
-  const georgiaBoldItalic = fs.existsSync(georgiaBoldItalicPath) 
-    ? fs.readFileSync(georgiaBoldItalicPath) 
-    : georgiaBold; // Fallback to bold if bold-italic doesn't exist
-
-  return { georgia, georgiaItalic, georgiaBold, georgiaBoldItalic, bahnschrift };
+  // Clean up fontFamily spaces to match filenames (e.g. "Times New Roman" -> "TimesNewRoman")
+  const sanitizedFamily = fontFamily.replace(/\s+/g, '');
+  let fileName = sanitizedFamily;
+  
+  if (fontStyle === 'bold') {
+    fileName += '-Bold';
+  } else if (fontStyle === 'italic') {
+    fileName += '-Italic';
+  } else if (fontStyle === 'bold-italic') {
+    fileName += '-BoldItalic';
+  }
+  
+  fileName += '.ttf';
+  let fontPath = path.join(fontsDir, fileName);
+  
+  // If styled font doesn't exist, fallback to regular family
+  if (!fs.existsSync(fontPath)) {
+    fontPath = path.join(fontsDir, `${sanitizedFamily}.ttf`);
+  }
+  
+  // If regular family doesn't exist, fallback to Georgia
+  if (!fs.existsSync(fontPath)) {
+    fontPath = path.join(fontsDir, 'Georgia.ttf');
+  }
+  
+  // Return the buffer
+  return fs.readFileSync(fontPath);
 }

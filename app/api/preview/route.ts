@@ -65,8 +65,11 @@ export async function POST(request: Request) {
     const result = await generateCertificate({
       templatePdfBuffer,
       configuration: activeConfig,
-      fullName,
-      certificateId,
+      fieldValues: {
+        fullName,
+        certificateId,
+        ...(body.dynamicFields || {}),
+      },
     });
 
     if (!result.success || !result.pdfBuffer) {

@@ -4,6 +4,7 @@ export interface ColumnMapping {
   fullNameColumn: string;
   certificateIdColumn: string;
   regionColumn?: string; // Optional mapping for region
+  dynamicColumns?: Record<string, string>; // Maps template field key to Excel column name
 }
 
 /**
@@ -20,23 +21,28 @@ export function validateExcelRows(
 
   rows.forEach((row, index) => {
     const excelRowNumber = index + 2; // Row 1 is usually the header row
-    const rawFullName = row[mapping.fullNameColumn]?.toString().trim() || '';
-    const rawCertificateId = row[mapping.certificateIdColumn]?.toString().trim() || '';
+    const rawFullName = mapping.fullNameColumn ? (row[mapping.fullNameColumn]?.toString().trim() || '') : '';
+    const rawCertificateId = mapping.certificateIdColumn ? (row[mapping.certificateIdColumn]?.toString().trim() || '') : '';
     const rawRegion = mapping.regionColumn ? (row[mapping.regionColumn]?.toString().trim() || '') : '';
 
-    // Check if empty row
-    if (!rawFullName && !rawCertificateId) {
-      // Skip completely empty rows
-      return;
+    // Map dynamic fields
+    const dynamicFields: Record<string, string> = {};
+    if (mapping.dynamicColumns) {
+      for (const [fieldKey, colName] of Object.entries(mapping.dynamicColumns)) {
+        if (colName) {
+          dynamicFields[fieldKey] = row[colName]?.toString().trim() || '';
+        }
+      }
+    }
+
+    // Check if completely empty row across all mapped core fields
+    if (!rawFullName && !rawCertificateId && Object.values(dynamicFields).every(val => !val)) {
+      return; // Skip completely empty rows
     }
 
     let errorMsg = '';
 
-    if (!rawFullName) {
-      errorMsg = 'Full Name is missing.';
-    } else if (!rawCertificateId) {
-      errorMsg = 'Certificate ID is missing.';
-    } else if (seenIds.has(rawCertificateId)) {
+    if (rawCertificateId && seenIds.has(rawCertificateId)) {
       errorMsg = `Duplicate Certificate ID: "${rawCertificateId}".`;
     }
 
@@ -55,6 +61,7 @@ export function validateExcelRows(
         certificateId: rawCertificateId,
         region: rawRegion,
         sourceRow: excelRowNumber,
+        dynamicFields,
       });
     }
   });
