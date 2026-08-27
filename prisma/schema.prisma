@@ -1,0 +1,52 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Template {
+  id              String       @id @default(uuid())
+  name            String
+  description     String?
+  originalFileUrl String       // Path/URL to original uploaded PDF template
+  configuration   Json         // Stores PDF coordinates & settings of fields
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  generations     Generation[]
+}
+
+model Generation {
+  id             String        @id @default(uuid())
+  templateId     String?       // Nullable so that history is kept if Template is deleted
+  template       Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  templateName   String        // Store template name snapshot
+  configuration  Json          // Configuration snapshot at time of generation (for versioning)
+  sourceType     String        // e.g. "EXCEL" or "CSV"
+  sourceFileName String
+  totalRows      Int           @default(0)
+  successCount   Int           @default(0)
+  failedCount    Int           @default(0)
+  status         String        // PENDING, PROCESSING, COMPLETED, COMPLETED_WITH_ERRORS, FAILED
+  zipFileUrl     String?       // URL/Path to the generated ZIP file containing all successful PDFs
+  createdAt      DateTime      @default(now())
+  completedAt    DateTime?
+  certificates   Certificate[]
+}
+
+model Certificate {
+  id            String     @id @default(uuid())
+  generationId  String
+  generation    Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  fullName      String
+  certificateId String
+  region        String?    // Added region (hudud) field
+  sourceRow     Int        @default(0) // Added sourceRow for error report mapping
+  fileName      String
+  fileUrl       String?
+  status        String     // PENDING, GENERATED, FAILED
+  errorMessage  String?
+  createdAt     DateTime   @default(now())
+}
