@@ -7,47 +7,85 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model User {
+  id               String              @id @default(uuid())
+  email            String              @unique
+  name             String?
+  passwordHash     String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  templates        Template[]
+  generations      Generation[]
+  certificates     Certificate[]
+  resetCodes       PasswordResetCode[]
+}
+
+model PasswordResetCode {
+  id        String   @id @default(uuid())
+  code      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
 model Template {
   id              String       @id @default(uuid())
+  userId          String       // Ties template to a specific user
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
   description     String?
-  originalFileUrl String       // Path/URL to original uploaded PDF template
-  configuration   Json         // Stores PDF coordinates & settings of fields
+  originalFileUrl String
+  configuration   Json
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   generations     Generation[]
+
+  @@index([userId])
 }
 
 model Generation {
   id             String        @id @default(uuid())
-  templateId     String?       // Nullable so that history is kept if Template is deleted
+  userId         String        // Ties generation to a specific user
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId     String?
   template       Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  templateName   String        // Store template name snapshot
-  configuration  Json          // Configuration snapshot at time of generation (for versioning)
-  sourceType     String        // e.g. "EXCEL" or "CSV"
+  templateName   String
+  configuration  Json
+  sourceType     String
   sourceFileName String
   totalRows      Int           @default(0)
   successCount   Int           @default(0)
   failedCount    Int           @default(0)
-  status         String        // PENDING, PROCESSING, COMPLETED, COMPLETED_WITH_ERRORS, FAILED
-  zipFileUrl     String?       // URL/Path to the generated ZIP file containing all successful PDFs
+  status         String
+  zipFileUrl     String?
   createdAt      DateTime      @default(now())
   completedAt    DateTime?
   certificates   Certificate[]
+
+  @@index([userId])
+  @@index([templateId])
 }
 
 model Certificate {
   id            String     @id @default(uuid())
+  userId        String     // Ties certificate to a specific user
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   generationId  String
   generation    Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
   fullName      String
   certificateId String
-  region        String?    // Added region (hudud) field
-  dynamicFields Json?      // Added to store arbitrary custom fields
-  sourceRow     Int        @default(0) // Added sourceRow for error report mapping
+  region        String?
+  dynamicFields Json?
+  sourceRow     Int        @default(0)
   fileName      String
   fileUrl       String?
-  status        String     // PENDING, GENERATED, FAILED
+  status        String
   errorMessage  String?
   createdAt     DateTime   @default(now())
+
+  @@index([userId])
+  @@index([generationId])
 }

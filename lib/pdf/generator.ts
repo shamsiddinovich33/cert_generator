@@ -19,10 +19,14 @@ export interface GenerationResult {
 
 /**
  * Sanitizes Uzbek apostrophe variants into standard single quote.
+ * Covers: left/right single quotes, modifier letters, acute accent, backtick,
+ * prime, Armenian apostrophe, and other common Unicode variants.
  */
 export function sanitizeUzbekText(text: string): string {
   if (!text) return '';
-  return text.replace(/[\u2018\u2019\u02BB\u02BC\u00B4\u0060]/g, "'");
+  return text
+    .replace(/[\u2018\u2019\u201A\u201B\u02BB\u02BC\u02B9\u02BA\u00B4\u0060\u2032\u2035\u055A\u07F4\u07F5\uFF07\uFF40\u0313\u0314\u0315\u02C8\u02CA\u02CB\u0312\u0357]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB\uFF02]/g, '"');
 }
 
 export async function generateCertificate({
@@ -69,7 +73,7 @@ export async function generateCertificate({
       if (field.key === 'certificateId') {
         fitResult = fitCertificateId(safeText, font, field.width, field.height, field.fontSize);
       } else {
-        fitResult = fitFullName(safeText, font, field.width, field.height, field.fontSize, field.minFontSize, field.maxFontSize);
+        fitResult = fitFullName(safeText, font, field.width, field.height, field.maxFontSize, field.minFontSize);
       }
 
       if (!fitResult.success) {
@@ -79,8 +83,9 @@ export async function generateCertificate({
       const fontSize = fitResult.fontSize;
       const textWidth = font.widthOfTextAtSize(safeText, fontSize);
       
-      const capHeight = font.embedder?.font?.capHeight
-        ? (font.embedder.font.capHeight / font.embedder.font.unitsPerEm) * fontSize
+      const fontEmbedder = (font as any).embedder;
+      const capHeight = fontEmbedder?.font?.capHeight
+        ? (fontEmbedder.font.capHeight / fontEmbedder.font.unitsPerEm) * fontSize
         : fontSize * 0.7;
 
       let x = field.x;

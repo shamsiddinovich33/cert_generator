@@ -33,8 +33,8 @@ export async function POST(request: Request) {
 
     if (parsedData.rows && parsedData.rows.length > 0) {
       columns = Object.keys(parsedData.rows[0]);
-      // Return first 50 rows as preview
-      previewRows = parsedData.rows.slice(0, 50);
+      // Return all rows since we need them for validation and generation
+      previewRows = parsedData.rows;
     }
 
     return NextResponse.json({

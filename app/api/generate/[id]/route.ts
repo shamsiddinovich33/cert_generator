@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { storageService } from '@/lib/storage';
+import { getCurrentUser } from '@/lib/auth/session';
 
 // GET specific generation batch detail
 export async function GET(
@@ -8,10 +9,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
     const { id } = await params;
 
     const generation = await prisma.generation.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
       include: {
         certificates: {
           orderBy: { createdAt: 'asc' },
@@ -56,10 +58,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
     const { id } = await params;
 
     const generation = await prisma.generation.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
     });
 
     if (!generation) {

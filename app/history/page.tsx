@@ -83,7 +83,7 @@ export default function HistoryPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:to-slate-350 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
             Generatsiya Tarixi
           </h1>
           <p className="text-slate-500 font-medium mt-1">
@@ -93,7 +93,7 @@ export default function HistoryPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 border border-red-250 rounded-xl flex items-center space-x-3">
+        <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center space-x-3">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm font-medium">{error}</p>
         </div>
@@ -101,12 +101,12 @@ export default function HistoryPage() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-3 bg-white/40 rounded-3xl border border-dashed border-slate-200">
-          <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
           <p className="text-sm text-slate-500 font-medium">Generatsiya tarixi yuklanmoqda...</p>
         </div>
       ) : generations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed border-slate-200 rounded-3xl space-y-4 bg-white/40">
-          <div className="p-4 bg-indigo-50 text-indigo-650 rounded-2xl">
+          <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
             <History className="h-10 w-10" />
           </div>
           <div className="text-center max-w-sm">
@@ -167,7 +167,7 @@ export default function HistoryPage() {
                         </span>
                       ) : gen.status === 'PROCESSING' ? (
                         <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-850 border border-indigo-100">
-                          <Loader2 className="h-3 w-3 animate-spin text-indigo-650" />
+                          <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
                           <span>Ishlanmoqda</span>
                         </span>
                       ) : (

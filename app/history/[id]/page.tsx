@@ -139,7 +139,7 @@ export default function HistoryDetailPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 border border-red-250 rounded-xl flex items-center space-x-3">
+        <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center space-x-3">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm font-medium">{error}</p>
         </div>
@@ -147,7 +147,7 @@ export default function HistoryDetailPage() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-3">
-          <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
           <p className="text-sm text-slate-500 font-medium">Batch tafsilotlari yuklanmoqda...</p>
         </div>
       ) : !batch ? (
@@ -159,7 +159,7 @@ export default function HistoryDetailPage() {
             <CardHeader className="border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 pb-6">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs font-bold text-indigo-650 uppercase tracking-widest">Generation batch</span>
+                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Generation batch</span>
                   <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold">
                     CERT-{batch.id.slice(0, 8).toUpperCase()}
                   </span>
@@ -223,7 +223,7 @@ export default function HistoryDetailPage() {
                       </span>
                     ) : batch.status === 'PROCESSING' ? (
                       <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-850 border border-indigo-100">
-                        <Loader2 className="h-3 w-3 animate-spin text-indigo-650" />
+                        <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
                         <span>Ishlanmoqda</span>
                       </span>
                     ) : (
@@ -295,7 +295,7 @@ export default function HistoryDetailPage() {
                       <TableCell className="font-semibold text-slate-800 dark:text-slate-200">
                         {cert.fullName}
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-slate-600 dark:text-slate-350 bg-slate-100/40 dark:bg-slate-800/40 px-2 py-0.5 border border-slate-200/50 dark:border-slate-700/50 rounded w-fit">
+                      <TableCell className="font-mono text-xs text-slate-600 dark:text-slate-300 bg-slate-100/40 dark:bg-slate-800/40 px-2 py-0.5 border border-slate-200/50 dark:border-slate-700/50 rounded w-fit">
                         {cert.certificateId}
                       </TableCell>
                       <TableCell className="text-slate-600 dark:text-slate-300 text-sm font-semibold">
@@ -327,20 +327,29 @@ export default function HistoryDetailPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="xs"
-                          variant="danger"
-                          className="p-1.5"
-                          onClick={() => handleDeleteCertificate(cert.id)}
-                          disabled={deletingCertId === cert.id}
-                          title="Sertifikatni o‘chirish"
-                        >
-                          {deletingCertId === cert.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
+                        <div className="flex justify-end items-center space-x-2">
+                          {cert.status === 'GENERATED' && (
+                            <a href={`/api/certificates/${cert.id}/download`} target="_blank" rel="noreferrer">
+                              <Button size="xs" variant="primary" className="text-xs bg-indigo-600 hover:bg-indigo-700 p-1.5">
+                                PDF
+                              </Button>
+                            </a>
                           )}
-                        </Button>
+                          <Button
+                            size="xs"
+                            variant="danger"
+                            className="p-1.5"
+                            onClick={() => handleDeleteCertificate(cert.id)}
+                            disabled={deletingCertId === cert.id}
+                            title="Sertifikatni o‘chirish"
+                          >
+                            {deletingCertId === cert.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth/session';
 
 // DELETE individual certificate and update parent generation batch statistics
 export async function DELETE(
@@ -7,11 +8,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
     const { id } = await params;
 
     // Find the certificate to delete
     const certificate = await prisma.certificate.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
     });
 
     if (!certificate) {

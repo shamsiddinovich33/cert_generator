@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { storageService } from '@/lib/storage';
+import { getCurrentUser } from '@/lib/auth/session';
 
 // GET template by ID
 export async function GET(
@@ -8,9 +9,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
     const { id } = await params;
     const template = await prisma.template.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
     });
 
     if (!template) {
@@ -50,12 +52,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
     const { id } = await params;
     const body = await request.json();
     const { name, description, configuration } = body;
 
     const existingTemplate = await prisma.template.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
     });
 
     if (!existingTemplate) {
@@ -104,10 +107,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
     const { id } = await params;
 
     const template = await prisma.template.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
     });
 
     if (!template) {

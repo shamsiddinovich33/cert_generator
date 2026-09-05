@@ -4,10 +4,14 @@ import { storageService } from '@/lib/storage';
 import { PDFDocument } from 'pdf-lib';
 import { TemplateConfiguration } from '@/types';
 
+import { getCurrentUser } from '@/lib/auth/session';
+
 // GET all templates
 export async function GET() {
   try {
+    const user = await getCurrentUser();
     const templates = await prisma.template.findMany({
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
     });
     
@@ -32,6 +36,7 @@ export async function GET() {
 // POST new template (upload PDF and set default config)
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
     const formData = await request.formData();
     const name = formData.get('name') as string;
     const description = formData.get('description') as string || '';
@@ -90,6 +95,7 @@ export async function POST(request: Request) {
     // Save to DB
     const template = await prisma.template.create({
       data: {
+        userId: user.id,
         name,
         description,
         originalFileUrl: fileUrl,

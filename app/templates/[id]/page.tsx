@@ -44,7 +44,7 @@ export default function TemplateEditorPage() {
 
   // Field states (in PDF points, as stored in DB)
   const [fields, setFields] = useState<TemplateField[]>([]);
-  const [selectedFieldKey, setSelectedFieldKey] = useState<'fullName' | 'certificateId'>('fullName');
+  const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null);
 
   // Preview dimensions (for coordinate mapping)
   const [pdfDimensions, setPdfDimensions] = useState({ width: 595, height: 842 }); // Default A4
@@ -65,7 +65,7 @@ export default function TemplateEditorPage() {
   const dragStartRef = useRef<{ x: number; y: number; originalX: number; originalY: number } | null>(null);
   const resizeStartRef = useRef<{ x: number; y: number; originalWidth: number; originalHeight: number; originalX: number; originalY: number } | null>(null);
   const activeInteractionRef = useRef<'drag' | 'resize' | null>(null);
-  const interactingFieldKeyRef = useRef<'fullName' | 'certificateId' | null>(null);
+  const interactingFieldKeyRef = useRef<string | null>(null);
 
   // 1. Load PDFJS CDN scripts
   useEffect(() => {
@@ -260,7 +260,7 @@ export default function TemplateEditorPage() {
     if (!field) return;
 
     const currentBrowserRect = getBrowserRect(field);
-    let newBrowserRect = { ...currentBrowserRect };
+    const newBrowserRect = { ...currentBrowserRect };
 
     if (action === 'drag' && dragStartRef.current) {
       const dx = e.clientX - dragStartRef.current.x;
@@ -476,7 +476,7 @@ export default function TemplateEditorPage() {
       </div>
 
       {error && (
-        <div className="p-4 mx-6 mt-4 bg-red-50 text-red-700 border border-red-250 rounded-xl flex items-center space-x-3 shrink-0">
+        <div className="p-4 mx-6 mt-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center space-x-3 shrink-0">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm font-medium">{error}</p>
         </div>
@@ -484,7 +484,7 @@ export default function TemplateEditorPage() {
 
       {loading || !pdfjsLoaded ? (
         <div className="flex-1 flex flex-col items-center justify-center space-y-3 bg-white">
-          <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
           <p className="text-sm text-slate-500 font-medium">Shablon tahrirlovchi yuklanmoqda...</p>
         </div>
       ) : (
@@ -493,7 +493,7 @@ export default function TemplateEditorPage() {
           <div className="flex-1 overflow-auto p-8 flex justify-center items-start bg-slate-200">
             <div
               ref={containerRef}
-              className="relative shadow-2xl border border-slate-350 bg-white rounded-lg select-none"
+              className="relative shadow-2xl border border-slate-300 bg-white rounded-lg select-none"
               style={{
                 width: `${pdfDimensions.width}px`,
                 height: `${pdfDimensions.height}px`,
@@ -584,7 +584,7 @@ export default function TemplateEditorPage() {
               {/* Field List Section */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold text-indigo-650 uppercase tracking-widest">
+                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">
                     Maydonlar
                   </span>
                   <Button size="sm" variant="outline" className="h-7 text-xs px-2 py-0 border-indigo-200 text-indigo-700 hover:bg-indigo-50" onClick={handleAddField}>
@@ -598,12 +598,18 @@ export default function TemplateEditorPage() {
                       onClick={() => setSelectedFieldKey(f.key)}
                       className={`flex items-center justify-between p-2 rounded-lg cursor-pointer border ${selectedFieldKey === f.key ? 'bg-white border-indigo-500 shadow-sm' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
                     >
-                      <span className="text-sm font-semibold text-slate-700 truncate max-w-[150px]">
-                        {f.label || f.key}
-                      </span>
+                      <input 
+                        type="text"
+                        value={f.label || f.key}
+                        onChange={(e) => {
+                          setFields(prev => prev.map(field => field.key === f.key ? { ...field, label: e.target.value } : field));
+                        }}
+                        className={`text-sm font-semibold truncate max-w-[180px] bg-transparent outline-none focus:ring-1 focus:ring-indigo-300 rounded px-1 -ml-1 ${selectedFieldKey === f.key ? 'text-indigo-900' : 'text-slate-700'}`}
+                        onClick={(e) => { e.stopPropagation(); setSelectedFieldKey(f.key); }}
+                      />
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteField(f.key); }}
-                        className="text-red-400 hover:text-red-600 p-1"
+                        className="text-red-400 hover:text-red-600 p-1 shrink-0 ml-1"
                         title="O'chirish"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -616,17 +622,9 @@ export default function TemplateEditorPage() {
               {selectedField ? (
                 <div className="space-y-6 pt-6 border-t border-slate-200">
                   <div>
-                    <span className="text-xs font-bold text-indigo-650 uppercase tracking-widest">
+                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">
                       Maydon sozlamalari
                     </span>
-                    <div className="mt-2">
-                      <Input 
-                        label="Maydon nomi"
-                        type="text"
-                        value={selectedField.label || (selectedField.key === 'fullName' ? 'F.I.Sh (Full Name)' : selectedField.key === 'certificateId' ? 'Sertifikat ID' : '')}
-                        onChange={(e) => updateFieldProperty('label', e.target.value)}
-                      />
-                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -781,7 +779,7 @@ export default function TemplateEditorPage() {
             <div className="flex-1 bg-slate-100 p-6 flex items-center justify-center">
               {previewLoading ? (
                 <div className="flex flex-col items-center space-y-2">
-                  <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+                  <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
                   <p className="text-sm text-slate-550 font-medium">Sertifikat generatsiya qilinmoqda...</p>
                 </div>
               ) : previewPdfUrl ? (

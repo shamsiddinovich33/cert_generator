@@ -56,7 +56,7 @@ export const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttr
   ({ className = '', ...props }, ref) => (
     <td
       ref={ref}
-      className={`p-4 align-middle text-slate-700 dark:text-slate-350 ${className}`}
+      className={`p-4 align-middle text-slate-700 dark:text-slate-300 ${className}`}
       {...props}
     />
   )

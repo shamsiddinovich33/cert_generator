@@ -19,6 +19,7 @@ import NextLink from 'next/link';
 
 interface Certificate {
   id: string;
+  generationId: string;
   fullName: string;
   certificateId: string;
   region: string | null; // Added region (hudud)
@@ -93,7 +94,7 @@ export default function CertificatesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:to-slate-350 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
             Yaratilgan Sertifikatlar
           </h1>
           <p className="text-slate-500 font-medium mt-1">
@@ -103,7 +104,7 @@ export default function CertificatesPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 border border-red-250 rounded-xl flex items-center space-x-3">
+        <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center space-x-3">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm font-medium">{error}</p>
         </div>
@@ -123,12 +124,12 @@ export default function CertificatesPage() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-3 bg-white/40 rounded-3xl border border-dashed border-slate-200">
-          <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
           <p className="text-sm text-slate-500 font-medium">Sertifikatlar yuklanmoqda...</p>
         </div>
       ) : filteredCerts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed border-slate-200 rounded-3xl space-y-4 bg-white/40">
-          <div className="p-4 bg-indigo-50 text-indigo-650 rounded-2xl">
+          <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
             <Award className="h-10 w-10" />
           </div>
           <div className="text-center max-w-sm">
@@ -159,7 +160,7 @@ export default function CertificatesPage() {
                     <TableCell className="font-semibold text-slate-800 dark:text-slate-200">
                       {cert.fullName}
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-slate-600 dark:text-slate-350 bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded w-fit border border-slate-200/40 dark:border-slate-700/40">
+                    <TableCell className="font-mono text-xs text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded w-fit border border-slate-200/40 dark:border-slate-700/40">
                       {cert.certificateId}
                     </TableCell>
                     <TableCell className="text-slate-600 dark:text-slate-300 text-sm font-semibold">
@@ -200,13 +201,20 @@ export default function CertificatesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        {cert.status === 'GENERATED' && cert.fileUrl ? (
-                          <NextLink href={`/history/${cert.generationId}`}>
-                            <Button size="xs" variant="outline" className="text-xs">
-                              <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                              Batch ZIP
-                            </Button>
-                          </NextLink>
+                        {cert.status === 'GENERATED' ? (
+                          <div className="flex space-x-2">
+                            <a href={`/api/certificates/${cert.id}/download`} target="_blank" rel="noreferrer">
+                              <Button size="xs" variant="primary" className="text-xs bg-indigo-600 hover:bg-indigo-700">
+                                PDF
+                              </Button>
+                            </a>
+                            <NextLink href={`/history/${cert.generationId}`}>
+                              <Button size="xs" variant="outline" className="text-xs">
+                                <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                                Batch
+                              </Button>
+                            </NextLink>
+                          </div>
                         ) : cert.status === 'FAILED' ? (
                           <span className="text-xs text-rose-500 font-medium line-clamp-1 max-w-[12rem] cursor-help" title={cert.errorMessage || ''}>
                             {cert.errorMessage}

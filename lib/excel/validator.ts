@@ -8,6 +8,16 @@ export interface ColumnMapping {
 }
 
 /**
+ * Sanitizes Uzbek apostrophe variants into standard single quote.
+ */
+function sanitizeText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[\u2018\u2019\u201A\u201B\u02BB\u02BC\u02B9\u02BA\u00B4\u0060\u2032\u2035\u055A\u07F4\u07F5\uFF07\uFF40\u0313\u0314\u0315\u02C8\u02CA\u02CB\u0312\u0357]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB\uFF02]/g, '"');
+}
+
+/**
  * Validates raw rows from Excel/CSV and maps them into internal participant format.
  * Detects missing values, duplicate IDs, and extracts optional region names.
  */
@@ -21,16 +31,16 @@ export function validateExcelRows(
 
   rows.forEach((row, index) => {
     const excelRowNumber = index + 2; // Row 1 is usually the header row
-    const rawFullName = mapping.fullNameColumn ? (row[mapping.fullNameColumn]?.toString().trim() || '') : '';
-    const rawCertificateId = mapping.certificateIdColumn ? (row[mapping.certificateIdColumn]?.toString().trim() || '') : '';
-    const rawRegion = mapping.regionColumn ? (row[mapping.regionColumn]?.toString().trim() || '') : '';
+    const rawFullName = sanitizeText(mapping.fullNameColumn ? (row[mapping.fullNameColumn]?.toString().trim() || '') : '');
+    const rawCertificateId = sanitizeText(mapping.certificateIdColumn ? (row[mapping.certificateIdColumn]?.toString().trim() || '') : '');
+    const rawRegion = sanitizeText(mapping.regionColumn ? (row[mapping.regionColumn]?.toString().trim() || '') : '');
 
     // Map dynamic fields
     const dynamicFields: Record<string, string> = {};
     if (mapping.dynamicColumns) {
       for (const [fieldKey, colName] of Object.entries(mapping.dynamicColumns)) {
         if (colName) {
-          dynamicFields[fieldKey] = row[colName]?.toString().trim() || '';
+          dynamicFields[fieldKey] = sanitizeText(row[colName]?.toString().trim() || '');
         }
       }
     }
@@ -42,7 +52,11 @@ export function validateExcelRows(
 
     let errorMsg = '';
 
-    if (rawCertificateId && seenIds.has(rawCertificateId)) {
+    if (mapping.fullNameColumn && !rawFullName) {
+      errorMsg = 'Full Name is missing.';
+    } else if (mapping.certificateIdColumn && !rawCertificateId) {
+      errorMsg = 'Certificate ID is missing.';
+    } else if (rawCertificateId && seenIds.has(rawCertificateId)) {
       errorMsg = `Duplicate Certificate ID: "${rawCertificateId}".`;
     }
 

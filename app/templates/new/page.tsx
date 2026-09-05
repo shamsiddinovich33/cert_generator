@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/router'; // wait, for App Router we should use next/navigation for router and Link from next/link!
 import NextLink from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -102,7 +101,7 @@ export default function NewTemplatePage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             {error && (
-              <div className="p-4 bg-red-50 text-red-700 border border-red-250 rounded-xl flex items-center space-x-3">
+              <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center space-x-3">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <p className="text-sm font-medium">{error}</p>
               </div>
@@ -157,7 +156,7 @@ export default function NewTemplatePage() {
                         <p className="text-sm font-semibold text-slate-800 line-clamp-1">{file.name}</p>
                         <p className="text-xs text-slate-500">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
                       </div>
-                      <label htmlFor="file-upload" className="cursor-pointer inline-flex text-xs font-bold text-indigo-650 hover:underline">
+                      <label htmlFor="file-upload" className="cursor-pointer inline-flex text-xs font-bold text-indigo-600 hover:underline">
                         Boshqa fayl tanlash
                       </label>
                     </div>

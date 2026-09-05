@@ -86,7 +86,8 @@ export async function POST(request: Request) {
     }
 
     // Return the PDF buffer directly with appropriate headers
-    return new NextResponse(result.pdfBuffer, {
+    return new NextResponse(result.pdfBuffer as any, {
+      status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'inline; filename="preview.pdf"',

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth/session';
 
 export async function GET() {
   try {
+    const user = await getCurrentUser();
     const certificates = await prisma.certificate.findMany({
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       include: {
         generation: {

@@ -5,13 +5,15 @@ import { generateCertificate } from '@/lib/pdf/generator';
 import { generateZip } from '@/lib/zip/generator';
 import { ParticipantInput, TemplateConfiguration } from '@/types';
 import fs from 'fs';
+import { getCurrentUser } from '@/lib/auth/session';
 
 // Helper function to process the batch in the background
 async function processBatch(
   generationId: string,
   templateId: string,
   participants: ParticipantInput[],
-  sourceFileName: string
+  sourceFileName: string,
+  userId: string
 ) {
   let successCount = 0;
   let failedCount = 0;
@@ -49,6 +51,7 @@ async function processBatch(
       // Create Certificate record in PENDING status
       const certRecord = await prisma.certificate.create({
         data: {
+          userId,
           generationId,
           fullName: participant.fullName || 'Noma\'lum',
           certificateId: participant.certificateId || `ID_${participant.sourceRow}`,
@@ -72,10 +75,10 @@ async function processBatch(
       });
 
       if (result.success && result.pdfBuffer) {
-        // Save PDF to temp folder
-        const cleanName = participant.fullName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-        const cleanId = participant.certificateId.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-        const fileName = `${cleanName}_${cleanId}.pdf`;
+        // Save PDF to temp folder - allow Unicode letters in filenames
+        const cleanName = participant.fullName.replace(/[^\p{L}\p{N}.\-_]/gu, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+        const cleanId = participant.certificateId.replace(/[^\p{L}\p{N}.\-_]/gu, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+        const fileName = `${cleanName || 'cert'}_${cleanId || 'id'}.pdf`;
         
         const tempFileUrl = await storageService.saveFile(
           result.pdfBuffer,
@@ -97,7 +100,7 @@ async function processBatch(
           data: {
             status: 'GENERATED',
             fileName,
-            fileUrl: tempFileUrl,
+            fileUrl: null,
           },
         });
 
@@ -196,6 +199,7 @@ async function processBatch(
 // POST start generation
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
     const body = await request.json();
     const { templateId, sourceFileName, mapping, participants } = body;
 
@@ -212,9 +216,32 @@ export async function POST(request: Request) {
       );
     }
 
+    // Limit to max 100 rows per batch to prevent server overload
+    if (participants.length > 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'A generation batch cannot exceed 100 rows. Please split your data.',
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // Verify template belongs to user
+    const template = await prisma.template.findUnique({
+      where: { id: templateId, userId: user.id }
+    });
+    if (!template) {
+      return NextResponse.json({ success: false, error: { code: 'NOT_FOUND', message: 'Template not found' } }, { status: 404 });
+    }
+
     // Create a database record for Generation in PENDING / PROCESSING status
     const generation = await prisma.generation.create({
       data: {
+        userId: user.id,
         templateId,
         templateName: '', // Will be snapshot on background run
         configuration: {}, // Will be snapshot on background run
@@ -226,7 +253,7 @@ export async function POST(request: Request) {
     });
 
     // Start background process
-    processBatch(generation.id, templateId, participants, sourceFileName);
+    processBatch(generation.id, templateId, participants, sourceFileName, user.id);
 
     return NextResponse.json({
       success: true,

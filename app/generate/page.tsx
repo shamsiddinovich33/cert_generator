@@ -70,6 +70,7 @@ function GeneratePageContent() {
   const [previewParticipantIndex, setPreviewParticipantIndex] = useState(0);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState('');
 
   // Background Job states
   const [generationId, setGenerationId] = useState<string | null>(null);
@@ -136,12 +137,38 @@ function GeneratePageContent() {
 
         // Pre-select smart mappings if names match
         const cols = json.data.columns as string[];
-        const nameMatch = cols.find(c => c.toLowerCase().includes('ism') || c.toLowerCase().includes('name') || c.toLowerCase().includes('f.i.sh') || c.toLowerCase().includes('fullname'));
-        const idMatch = cols.find(c => c.toLowerCase().includes('id') || c.toLowerCase().includes('kod') || c.toLowerCase().includes('code') || c.toLowerCase().includes('sertifikat'));
-        const regionMatch = cols.find(c => c.toLowerCase().includes('hudud') || c.toLowerCase().includes('region') || c.toLowerCase().includes('viloyat') || c.toLowerCase().includes('tuman') || c.toLowerCase().includes('shahar'));
+        const nameMatch = cols.find(c => {
+          const lower = c.toLowerCase();
+          return lower.includes('ism') || lower.includes('name') || lower.includes('f.i.sh') || lower.includes('fullname') || lower.includes('fish') || lower.includes('familiya') || lower.includes('ism') || lower === 'fio' || lower === 'f.i.o';
+        });
+        const idMatch = cols.find(c => {
+          const lower = c.toLowerCase();
+          return lower.includes('id') || lower.includes('kod') || lower.includes('code') || lower.includes('sertifikat') || lower.includes('raqam') || lower.includes('nomer');
+        });
+        const regionMatch = cols.find(c => {
+          const lower = c.toLowerCase();
+          return lower.includes('hudud') || lower.includes('region') || lower.includes('viloyat') || lower.includes('tuman') || lower.includes('shahar');
+        });
 
-        setFullNameCol(nameMatch || cols[0] || '');
-        setCertificateIdCol(idMatch || cols[1] || cols[0] || '');
+        // Smart fallback: avoid assigning the same column to both name and ID
+        let resolvedNameCol = nameMatch || '';
+        let resolvedIdCol = idMatch || '';
+        
+        if (!resolvedNameCol && resolvedIdCol) {
+          // Name not found, pick first column that's not the ID column
+          resolvedNameCol = cols.find(c => c !== resolvedIdCol) || cols[0] || '';
+        } else if (!resolvedNameCol && !resolvedIdCol) {
+          resolvedNameCol = cols[0] || '';
+          resolvedIdCol = cols[1] || cols[0] || '';
+        }
+        
+        // If both ended up on the same column, try to separate them
+        if (resolvedNameCol === resolvedIdCol && cols.length > 1) {
+          resolvedNameCol = cols.find(c => c !== resolvedIdCol) || cols[0];
+        }
+
+        setFullNameCol(resolvedNameCol);
+        setCertificateIdCol(resolvedIdCol);
         setRegionCol(regionMatch || '');
       } else {
         setError(json.error?.message || 'Excel tahlil qilishda xatolik.');
@@ -159,6 +186,39 @@ function GeneratePageContent() {
     }
   };
 
+  const handleGoogleSheetsUrl = async (url: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      // Example url: https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=0
+      const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!match) {
+        throw new Error('Noto\'g\'ri Google Sheets ssilkasi. Iltimos, to\'g\'ri ssilkani kiriting.');
+      }
+      const sheetId = match[1];
+      let gid = '0';
+      if (url.includes('gid=')) {
+        gid = url.split('gid=')[1].split('&')[0];
+      }
+      
+      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+      const res = await fetch(exportUrl);
+      if (!res.ok) {
+        throw new Error('Google Sheets fayliga kirish imkoni yo\'q. U ommaviy ochiq (Anyone with the link) ekanligini tekshiring.');
+      }
+      
+      // Fetch text and prepend UTF-8 BOM to fix Cyrillic/Uzbek Latin characters encoding
+      const text = await res.text();
+      const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8;' });
+      const file = new File([blob], 'GoogleSheets_Export.csv', { type: 'text/csv' });
+      await handleExcelUpload(file);
+    } catch (err: any) {
+      setError(err.message || 'Google Sheets ulanishda xatolik');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSheetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setSelectedSheetName(val);
@@ -169,19 +229,53 @@ function GeneratePageContent() {
 
   // 3. Process Validation
   const processValidation = () => {
-    if (!fullNameCol || !certificateIdCol || excelRows.length === 0) {
-      setError('Ustunlar xaritasini to‘liq to‘ldiring.');
+    const activeTemplate = templates.find(t => t.id === selectedTemplateId);
+    const activeFields = activeTemplate?.configuration?.fields || [];
+    
+    const requiresFullName = activeFields.some((f: any) => f.key === 'fullName');
+    const requiresCertId = activeFields.some((f: any) => f.key === 'certificateId');
+    const dynamicFields = activeFields.filter((f: any) => f.key !== 'fullName' && f.key !== 'certificateId');
+    
+    if (requiresFullName && !fullNameCol) {
+      setError('Ism ustunini tanlang.');
+      return;
+    }
+    if (requiresCertId && !certificateIdCol) {
+      setError('ID ustunini tanlang.');
+      return;
+    }
+    
+    const missingDynamic = dynamicFields.some((f: any) => !dynamicCols[f.key]);
+    if (missingDynamic) {
+      setError('Barcha qo\'shimcha maydonlarni tanlang.');
+      return;
+    }
+
+    if (excelRows.length === 0) {
+      setError('Excel ma\'lumotlari bo\'sh.');
       return;
     }
 
     setLoading(true);
-    // Execute validation on client (using core validator function logic)
+    
+    console.log('[DEBUG] Column mapping:', { fullNameCol, certificateIdCol, regionCol, dynamicCols });
+    console.log('[DEBUG] First Excel row:', excelRows[0]);
+    console.log('[DEBUG] Excel columns:', excelColumns);
+    
     const result = validateExcelRows(excelRows, {
       fullNameColumn: fullNameCol,
       certificateIdColumn: certificateIdCol,
       regionColumn: regionCol || undefined,
       dynamicColumns: dynamicCols,
     });
+
+    console.log('[DEBUG] First valid participant:', result.valid[0]);
+
+    if (result.valid.length > 100) {
+      setError(`Sizning ro'yxatingizda ${result.valid.length} kishi qatnashyapti. Tizim cheklovi bo'yicha bir urinishda maksimal 100 ta sertifikat generatsiya qilish mumkin. Iltimos, ro'yxatni qisqartiring.`);
+      setLoading(false);
+      return;
+    }
 
     setValidParticipants(result.valid);
     setInvalidRows(result.invalid);
@@ -279,7 +373,7 @@ function GeneratePageContent() {
       return;
     }
 
-    let intervalId = setInterval(async () => {
+    const intervalId = setInterval(async () => {
       try {
         const res = await fetch(`/api/generate/${generationId}`);
         const json = await res.json();
@@ -320,7 +414,7 @@ function GeneratePageContent() {
     <div className="p-8 max-w-5xl mx-auto w-full space-y-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:to-slate-350 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
           Sertifikatlar Yaratish (Wizard)
         </h1>
         <p className="text-slate-500 font-medium mt-1">
@@ -342,7 +436,7 @@ function GeneratePageContent() {
               {s}
             </div>
             <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:block ${
-              step === s ? 'text-indigo-650' : step > s ? 'text-emerald-700' : 'text-slate-400'
+              step === s ? 'text-indigo-600' : step > s ? 'text-emerald-700' : 'text-slate-400'
             }`}>
               {s === 1 && 'Shablon'}
               {s === 2 && 'Excel'}
@@ -357,7 +451,7 @@ function GeneratePageContent() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 border border-red-250 rounded-xl flex items-center space-x-3">
+        <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center space-x-3">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm font-medium">{error}</p>
         </div>
@@ -375,7 +469,7 @@ function GeneratePageContent() {
           <CardContent className="space-y-4">
             {loading ? (
               <div className="flex justify-center py-6">
-                <Loader2 className="h-6 w-6 text-indigo-650 animate-spin" />
+                <Loader2 className="h-6 w-6 text-indigo-600 animate-spin" />
               </div>
             ) : templates.length === 0 ? (
               <div className="p-6 text-center space-y-3">
@@ -468,7 +562,7 @@ function GeneratePageContent() {
                     </div>
                   )}
 
-                  <label htmlFor="excel-upload" className="cursor-pointer inline-flex text-xs font-bold text-indigo-650 hover:underline">
+                  <label htmlFor="excel-upload" className="cursor-pointer inline-flex text-xs font-bold text-indigo-600 hover:underline">
                     Boshqa fayl yuklash
                   </label>
                 </div>
@@ -488,6 +582,37 @@ function GeneratePageContent() {
                 </label>
               )}
             </div>
+
+            {!excelFile && (
+              <>
+                <div className="relative py-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-slate-200"></span>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-white px-2 text-slate-500 uppercase font-bold tracking-wider">Yoki Google Sheets orqali</span>
+                  </div>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <input
+                    type="url"
+                    value={sheetUrl}
+                    onChange={(e) => setSheetUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className="flex-1 h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-indigo-500 bg-slate-50"
+                  />
+                  <Button 
+                    type="button"
+                    onClick={() => handleGoogleSheetsUrl(sheetUrl)}
+                    disabled={!sheetUrl || loading}
+                    className="h-10"
+                  >
+                    Yuklash
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
           <CardFooter className="flex justify-between pt-6 border-t border-slate-100">
             <Button variant="outline" onClick={() => setStep(1)} className="flex items-center space-x-2">
@@ -650,17 +775,41 @@ function GeneratePageContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Ism (F.I.Sh)</TableHead>
-                      <TableHead>ID</TableHead>
+                      {/* Fixed headers based on standard mapping */}
+                      {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || []).some((f: any) => f.key === 'fullName') && (
+                        <TableHead>Ism (F.I.Sh)</TableHead>
+                      )}
+                      {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || []).some((f: any) => f.key === 'certificateId') && (
+                        <TableHead>ID</TableHead>
+                      )}
                       <TableHead>Hudud (Region)</TableHead>
+                      
+                      {/* Dynamic field headers */}
+                      {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || [])
+                        .filter((f: any) => f.key !== 'fullName' && f.key !== 'certificateId')
+                        .map((field: any) => (
+                          <TableHead key={field.key}>{field.label || field.key}</TableHead>
+                        ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {excelRows.slice(0, 5).map((row, idx) => (
                       <TableRow key={idx}>
-                        <TableCell className="font-medium">{row[fullNameCol] || '-'}</TableCell>
-                        <TableCell>{row[certificateIdCol] || '-'}</TableCell>
+                        {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || []).some((f: any) => f.key === 'fullName') && (
+                          <TableCell className="font-medium">{fullNameCol ? (row[fullNameCol] || '-') : '-'}</TableCell>
+                        )}
+                        {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || []).some((f: any) => f.key === 'certificateId') && (
+                          <TableCell>{certificateIdCol ? (row[certificateIdCol] || '-') : '-'}</TableCell>
+                        )}
                         <TableCell>{regionCol ? (row[regionCol] || '-') : '-'}</TableCell>
+                        
+                        {(templates.find(t => t.id === selectedTemplateId)?.configuration?.fields || [])
+                          .filter((f: any) => f.key !== 'fullName' && f.key !== 'certificateId')
+                          .map((field: any) => (
+                            <TableCell key={field.key}>
+                              {dynamicCols[field.key] ? (row[dynamicCols[field.key]] || '-') : '-'}
+                            </TableCell>
+                          ))}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -675,7 +824,21 @@ function GeneratePageContent() {
             </Button>
             <Button
               onClick={processValidation}
-              disabled={!fullNameCol || !certificateIdCol}
+              disabled={
+                (() => {
+                  const activeTemplate = templates.find(t => t.id === selectedTemplateId);
+                  const activeFields = activeTemplate?.configuration?.fields || [];
+                  const requiresFullName = activeFields.some((f: any) => f.key === 'fullName');
+                  const requiresCertId = activeFields.some((f: any) => f.key === 'certificateId');
+                  const dynamicFields = activeFields.filter((f: any) => f.key !== 'fullName' && f.key !== 'certificateId');
+                  
+                  if (requiresFullName && !fullNameCol) return true;
+                  if (requiresCertId && !certificateIdCol) return true;
+                  if (dynamicFields.some((f: any) => !dynamicCols[f.key])) return true;
+                  
+                  return false;
+                })()
+              }
               className="flex items-center space-x-2"
             >
               <span>Keyingi qadam (Tekshirish)</span>
@@ -775,10 +938,10 @@ function GeneratePageContent() {
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tekshirilayotgan qatnashchi</span>
                   <p className="text-sm font-bold text-slate-800">
-                    {validParticipants[previewParticipantIndex].fullName}
+                    {validParticipants[previewParticipantIndex].fullName || Object.values(validParticipants[previewParticipantIndex].dynamicFields || {}).find(v => v && v.length > 2) || validParticipants[previewParticipantIndex].certificateId || 'Noma\'lum'}
                   </p>
-                  <p className="text-xs text-indigo-650 font-semibold">
-                    ID: {validParticipants[previewParticipantIndex].certificateId}
+                  <p className="text-xs text-indigo-600 font-semibold">
+                    {validParticipants[previewParticipantIndex].certificateId && `ID: ${validParticipants[previewParticipantIndex].certificateId}`}
                     {validParticipants[previewParticipantIndex].region && ` | Hudud: ${validParticipants[previewParticipantIndex].region}`}
                   </p>
                 </div>
@@ -814,7 +977,7 @@ function GeneratePageContent() {
             <div className="h-[50vh] bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200 shadow-inner overflow-hidden">
               {previewLoading ? (
                 <div className="flex flex-col items-center space-y-2">
-                  <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+                  <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
                   <p className="text-sm text-slate-500 font-medium">Sertifikat tayyorlanmoqda...</p>
                 </div>
               ) : previewPdfUrl ? (
@@ -872,7 +1035,7 @@ function GeneratePageContent() {
             </div>
 
             <div className="flex items-center justify-center space-x-3 py-6">
-              <Loader2 className="h-6 w-6 text-indigo-650 animate-spin" />
+              <Loader2 className="h-6 w-6 text-indigo-600 animate-spin" />
               <p className="text-sm font-semibold text-indigo-750">PDF fayllar tayyorlanmoqda... ({totalProcessed} / {validParticipants.length})</p>
             </div>
           </CardContent>
@@ -948,7 +1111,7 @@ export default function GeneratePage() {
   return (
     <Suspense fallback={
       <div className="p-8 max-w-5xl mx-auto w-full flex flex-col items-center justify-center py-24 space-y-3">
-        <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+        <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
         <p className="text-sm text-slate-500 font-medium">Sahifa yuklanmoqda...</p>
       </div>
     }>

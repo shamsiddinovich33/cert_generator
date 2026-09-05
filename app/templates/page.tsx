@@ -75,7 +75,7 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:to-slate-350 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
             Sertifikat Shablonlari
           </h1>
           <p className="text-slate-500 font-medium mt-1">
@@ -91,7 +91,7 @@ export default function TemplatesPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 border border-red-250 rounded-xl flex items-center space-x-3">
+        <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center space-x-3">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm font-medium">{error}</p>
         </div>
@@ -99,12 +99,12 @@ export default function TemplatesPage() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-3">
-          <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
           <p className="text-sm text-slate-500 font-medium">Shablonlar yuklanmoqda...</p>
         </div>
       ) : templates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed border-slate-200 rounded-3xl space-y-4 bg-white/40">
-          <div className="p-4 bg-indigo-50 text-indigo-650 rounded-2xl">
+          <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
             <FileCheck className="h-10 w-10" />
           </div>
           <div className="text-center max-w-sm">
@@ -123,7 +123,7 @@ export default function TemplatesPage() {
             <Card key={tpl.id} className="flex flex-col hover:shadow-2xl transition-all duration-300">
               <CardContent className="p-6 flex-1 flex flex-col justify-between space-y-6">
                 <div>
-                  <div className="flex items-center space-x-2 text-indigo-650 font-semibold text-xs uppercase tracking-wider mb-2">
+                  <div className="flex items-center space-x-2 text-indigo-600 font-semibold text-xs uppercase tracking-wider mb-2">
                     <FileCheck className="h-4 w-4" />
                     <span>PDF Template</span>
                   </div>

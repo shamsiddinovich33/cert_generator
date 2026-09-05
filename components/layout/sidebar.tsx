@@ -11,8 +11,14 @@ import {
   Award
 } from 'lucide-react';
 
+import { signOut } from 'next-auth/react';
+
 export default function Sidebar() {
   const pathname = usePathname();
+
+  if (pathname.startsWith('/auth')) {
+    return null;
+  }
 
   const menuItems = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -26,7 +32,7 @@ export default function Sidebar() {
     <aside className="w-64 bg-slate-900 border-r border-slate-800 text-slate-100 flex flex-col h-screen shrink-0 sticky top-0">
       {/* Brand Header */}
       <div className="p-6 border-b border-slate-800 flex items-center space-x-3 bg-slate-950/20">
-        <div className="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-650/40">
+        <div className="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-600/40">
           <Award className="h-6 w-6" />
         </div>
         <div>
@@ -51,7 +57,7 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isActive
-                  ? 'bg-gradient-to-r from-indigo-600/90 to-violet-650/90 text-white shadow-md shadow-indigo-900/30'
+                  ? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-md shadow-indigo-900/30'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
               }`}
             >
@@ -62,10 +68,18 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Footer info */}
-      <div className="p-4 border-t border-slate-800 text-center bg-slate-950/10">
-        <p className="text-xs text-slate-500 font-medium">Single-User Workflow</p>
-        <p className="text-[10px] text-indigo-400/80 font-medium mt-0.5">© 2026 Certificate Generator</p>
+      {/* Footer info & Logout */}
+      <div className="p-4 border-t border-slate-800 bg-slate-950/10 space-y-2">
+        <Link href="/profile" className="flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+          <Settings className="h-4 w-4 shrink-0" />
+          <span>Mening profilim</span>
+        </Link>
+        <button 
+          onClick={() => signOut({ callbackUrl: '/auth/login' })}
+          className="w-full flex items-center justify-center space-x-2 bg-slate-800/80 hover:bg-rose-900/50 hover:text-rose-400 text-slate-300 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          <span>Chiqish</span>
+        </button>
       </div>
     </aside>
   );

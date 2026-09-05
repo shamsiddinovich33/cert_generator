@@ -15,7 +15,8 @@ export function parseExcel(
   selectedSheetName?: string
 ): ParsedSheetData {
   // 1. Read the workbook
-  const workbook = read(fileBuffer, { type: 'buffer' });
+  // Use codepage 65001 to force UTF-8 parsing for CSVs
+  const workbook = read(fileBuffer, { type: 'buffer', codepage: 65001 });
   const sheetNames = workbook.SheetNames;
 
   if (!sheetNames || sheetNames.length === 0) {
