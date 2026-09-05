@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#big file
+public/uploads/templates
+
+public/uploads/zip
